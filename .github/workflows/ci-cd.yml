@@ -1,0 +1,76 @@
+name: Terraform Deployment
+
+on:
+  push:
+    branches:
+      - main
+    workflow_run:
+    workflows: ["Trigger AWS", "Trigger GCP", "Trigger Azure"]
+    types:
+      - requested
+
+jobs:
+  deploy_aws:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Configure AWS credentials
+        run: aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }} && aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }} && aws configure set region us-west-2
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Plan
+        run: terraform plan -input=false -out=tfplan
+
+      - name: Terraform Apply
+        run: terraform apply -input=false tfplan
+        env:
+          TF_VAR_aws_region: ${{ secrets.AWS_REGION }}
+
+  deploy_gcp:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Configure GCP credentials
+        run: echo ${{ secrets.GCP_CREDENTIALS }} > gcp-credentials.json
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Plan
+        run: terraform plan -input=false -out=tfplan
+
+      - name: Terraform Apply
+        run: terraform apply -input=false tfplan
+        env:
+          TF_VAR_gcp_region: ${{ secrets.GCP_REGION }}
+
+  deploy_azure:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Azure Login and Terraform Apply
+        uses: hashicorp/setup-terraform@v1
+        with:
+          terraform_version: 1.0.6
+        env:
+          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+
+      - run: terraform init
+        working-directory: ./path/to/your/azure/terraform/configurations
+
+      - run: terraform plan -input=false -out=tfplan
+        working-directory: ./path/to/your/azure/terraform/configurations
+
+      - run: terraform apply -input=false tfplan
+        working-directory: ./path/to/your/azure/terraform/configurations

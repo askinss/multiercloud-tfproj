@@ -1,0 +1,25 @@
+name: GCP Test Environment
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy_gcp_test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Configure GCP credentials
+        run: echo ${{ secrets.GCP_CREDENTIALS }} > gcp-credentials.json
+
+      - name: Terraform Init
+        run: terraform init -input=false -var-file=../environments/test/gcp.tfvars
+
+      - name: Terraform Plan
+        run: terraform plan -input=false -var-file=../environments/test/gcp.tfvars -out=tfplan
+
+      - name: Terraform Apply
+        run: terraform apply -input=false tfplan
